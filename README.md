@@ -9,6 +9,16 @@ VB.NET); the difference is the project file (`.vbproj` instead of `.csproj`).
 While the marketplace already has C#-focused solution explorers, this extension
 is written from scratch with VB.NET / .NET Framework projects in mind.
 
+## Screenshots
+
+Solution Explorer tree (Solution → Project → References / Folders / Files):
+
+![Solution Explorer](docs/solution-explorer.png)
+
+Click a file to open it in the editor:
+
+![Open a VB file](docs/open-file.png)
+
 ## Features
 
 - **Solution Explorer tree** — parses the `.sln` and each non-SDK `.vbproj` and
@@ -26,9 +36,35 @@ This extension targets **classic .NET Framework** projects, so it expects a
 
 - **Visual Studio** or **Visual Studio Build Tools** installed (provides
   `MSBuild.exe`, located automatically via `vswhere`).
-- The **C# extension** (`ms-dotnettools.csharp`) — required for the `clr`
-  debugger. It is declared as an extension dependency and installed
-  automatically.
+- The **C# extension** (`ms-dotnettools.csharp`) — **optional**, only needed for
+  the **Debug** feature (it provides the `clr` debugger). The extension checks
+  for it at debug time and shows a helpful message if it is missing. Browsing the
+  solution tree, building and running work without it.
+
+> Note: the C# extension is **not** a hard dependency. The extension activates
+> and loads the Solution Explorer even when the C# extension is not installed.
+
+## Installation
+
+### From a `.vsix` package
+
+```bash
+# build the package (requires Node.js)
+npm install
+npm run compile
+npx @vscode/vsce package        # produces vb-solution-explorer-<version>.vsix
+
+# install into VS Code
+code --install-extension vb-solution-explorer-0.1.0.vsix
+```
+
+Or in VS Code: **Extensions** view → `...` menu → **Install from VSIX...** and
+pick the `.vsix` file.
+
+### From source (development)
+
+See the [Development](#development) section below — press <kbd>F5</kbd> to run an
+Extension Development Host.
 
 ## Usage
 
