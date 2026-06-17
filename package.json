@@ -93,6 +93,11 @@
       {
         "command": "vbsln.openFile",
         "title": "VB: Open File"
+      },
+      {
+        "command": "vbsln.viewForm",
+        "title": "VB: View Form Designer",
+        "icon": "$(window)"
       }
     ],
     "menus": {
@@ -113,7 +118,19 @@
           "group": "navigation@3"
         }
       ],
+      "editor/title": [
+        {
+          "command": "vbsln.viewForm",
+          "when": "vbsln.activeIsForm",
+          "group": "navigation"
+        }
+      ],
       "view/item/context": [
+        {
+          "command": "vbsln.viewForm",
+          "when": "view == vbSolutionExplorer && viewItem == vbForm",
+          "group": "navigation@1"
+        },
         {
           "command": "vbsln.build",
           "when": "view == vbSolutionExplorer && viewItem == solution",
