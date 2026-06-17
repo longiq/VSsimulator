@@ -1,0 +1,180 @@
+{
+  "name": "vb-solution-explorer",
+  "displayName": "VB.NET Solution Explorer",
+  "description": "Open, browse, build, run and debug VB.NET (.NET Framework) solution (.sln) files in VS Code.",
+  "version": "0.1.0",
+  "publisher": "longiq",
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.75.0"
+  },
+  "categories": [
+    "Other",
+    "Programming Languages"
+  ],
+  "keywords": [
+    "vb.net",
+    "visual basic",
+    "solution",
+    "sln",
+    "vbproj",
+    ".net framework",
+    "msbuild"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/longiq/vssimulator.git"
+  },
+  "main": "./out/extension.js",
+  "activationEvents": [
+    "workspaceContains:**/*.sln"
+  ],
+  "extensionDependencies": [
+    "ms-dotnettools.csharp"
+  ],
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "vbSolution",
+          "title": "VB Solution",
+          "icon": "media/vb.svg"
+        }
+      ]
+    },
+    "views": {
+      "vbSolution": [
+        {
+          "id": "vbSolutionExplorer",
+          "name": "Solution Explorer",
+          "contextualTitle": "VB Solution Explorer"
+        }
+      ]
+    },
+    "viewsWelcome": [
+      {
+        "view": "vbSolutionExplorer",
+        "contents": "No VB.NET solution found in the current workspace.\n[Open Solution File](command:vbsln.openSolution)"
+      }
+    ],
+    "commands": [
+      {
+        "command": "vbsln.openSolution",
+        "title": "VB: Open Solution (.sln)",
+        "icon": "$(folder-opened)"
+      },
+      {
+        "command": "vbsln.refresh",
+        "title": "VB: Refresh Solution Explorer",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "vbsln.build",
+        "title": "VB: Build Solution",
+        "icon": "$(tools)"
+      },
+      {
+        "command": "vbsln.rebuild",
+        "title": "VB: Rebuild Solution"
+      },
+      {
+        "command": "vbsln.buildProject",
+        "title": "VB: Build Project",
+        "icon": "$(tools)"
+      },
+      {
+        "command": "vbsln.run",
+        "title": "VB: Run Project",
+        "icon": "$(run)"
+      },
+      {
+        "command": "vbsln.debug",
+        "title": "VB: Debug Project",
+        "icon": "$(debug-alt)"
+      },
+      {
+        "command": "vbsln.openFile",
+        "title": "VB: Open File"
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "vbsln.build",
+          "when": "view == vbSolutionExplorer",
+          "group": "navigation@1"
+        },
+        {
+          "command": "vbsln.refresh",
+          "when": "view == vbSolutionExplorer",
+          "group": "navigation@2"
+        },
+        {
+          "command": "vbsln.openSolution",
+          "when": "view == vbSolutionExplorer",
+          "group": "navigation@3"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "vbsln.build",
+          "when": "view == vbSolutionExplorer && viewItem == solution",
+          "group": "build@1"
+        },
+        {
+          "command": "vbsln.rebuild",
+          "when": "view == vbSolutionExplorer && viewItem == solution",
+          "group": "build@2"
+        },
+        {
+          "command": "vbsln.buildProject",
+          "when": "view == vbSolutionExplorer && viewItem == project",
+          "group": "build@1"
+        },
+        {
+          "command": "vbsln.run",
+          "when": "view == vbSolutionExplorer && viewItem == project",
+          "group": "run@1"
+        },
+        {
+          "command": "vbsln.debug",
+          "when": "view == vbSolutionExplorer && viewItem == project",
+          "group": "run@2"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "VB.NET Solution Explorer",
+      "properties": {
+        "vbsln.configuration": {
+          "type": "string",
+          "enum": [
+            "Debug",
+            "Release"
+          ],
+          "default": "Debug",
+          "description": "MSBuild configuration used when building, running and debugging."
+        },
+        "vbsln.msbuildPath": {
+          "type": "string",
+          "default": "",
+          "description": "Explicit path to MSBuild.exe. Leave empty to auto-detect with vswhere."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "lint": "tsc -p ./ --noEmit"
+  },
+  "dependencies": {
+    "fast-xml-parser": "^4.3.6"
+  },
+  "devDependencies": {
+    "@types/node": "^18.19.0",
+    "@types/vscode": "^1.75.0",
+    "typescript": "^5.4.0"
+  }
+}
