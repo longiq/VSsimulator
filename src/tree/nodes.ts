@@ -85,8 +85,17 @@ export class FolderNode extends TreeNode {
 
 export class FileNode extends TreeNode {
   readonly kind = 'file';
-  constructor(label: string, absolutePath: string) {
-    super(label, vscode.TreeItemCollapsibleState.None);
+  constructor(
+    label: string,
+    public readonly absolutePath: string,
+    private readonly children: TreeNode[] = []
+  ) {
+    super(
+      label,
+      children.length > 0
+        ? vscode.TreeItemCollapsibleState.Collapsed
+        : vscode.TreeItemCollapsibleState.None
+    );
     this.contextValue = 'file';
     this.resourceUri = vscode.Uri.file(absolutePath);
     this.iconPath = vscode.ThemeIcon.File;
@@ -98,20 +107,29 @@ export class FileNode extends TreeNode {
     this.tooltip = absolutePath;
   }
   getChildren(): TreeNode[] {
-    return [];
+    return this.children;
   }
+}
+
+/** A file collected while building the tree, before nesting is applied. */
+interface FileEntry {
+  label: string;
+  absolutePath: string;
+  /** File name of the parent this item is nested under, if any. */
+  dependentUpon?: string;
 }
 
 /** Intermediate mutable tree used to group included items into folders. */
 interface DirEntry {
   dirs: Map<string, DirEntry>;
-  files: { label: string; absolutePath: string }[];
+  files: FileEntry[];
 }
 
 /**
  * Build a Visual-Studio-like folder tree from the flat list of included items.
  * Non-SDK projects list every file explicitly, so the folder structure is
- * inferred from the relative include paths.
+ * inferred from the relative include paths. Files marked `<DependentUpon>` are
+ * nested under their parent file (e.g. Form1.Designer.vb under Form1.vb).
  */
 function buildFileTree(project: VbProject): TreeNode[] {
   const root: DirEntry = { dirs: new Map(), files: [] };
@@ -135,7 +153,16 @@ function buildFileTree(project: VbProject): TreeNode[] {
     if (!fileName) {
       continue;
     }
-    ensureDir(segments).files.push({ label: fileName, absolutePath: item.absolutePath });
+    // DependentUpon may be written with a path; only the file name matters for
+    // matching within the same directory.
+    const parent = item.dependentUpon
+      ? item.dependentUpon.split(/[\\/]/).pop()
+      : undefined;
+    ensureDir(segments).files.push({
+      label: fileName,
+      absolutePath: item.absolutePath,
+      dependentUpon: parent,
+    });
   }
 
   // Declared empty folders.
@@ -144,15 +171,40 @@ function buildFileTree(project: VbProject): TreeNode[] {
     ensureDir(segments);
   }
 
+  const buildFileNodes = (files: FileEntry[]): FileNode[] => {
+    // Group dependents by their (case-insensitive) parent file name.
+    const dependentsByParent = new Map<string, FileEntry[]>();
+    const primaries: FileEntry[] = [];
+    const labels = new Set(files.map((f) => f.label.toLowerCase()));
+    for (const f of files) {
+      const key = f.dependentUpon?.toLowerCase();
+      // Only nest when the named parent actually exists in this directory;
+      // otherwise treat the file as a normal top-level entry.
+      if (key && labels.has(key)) {
+        const list = dependentsByParent.get(key) ?? [];
+        list.push(f);
+        dependentsByParent.set(key, list);
+      } else {
+        primaries.push(f);
+      }
+    }
+
+    return primaries
+      .sort((a, b) => a.label.localeCompare(b.label))
+      .map((f) => {
+        const deps = (dependentsByParent.get(f.label.toLowerCase()) ?? [])
+          .sort((a, b) => a.label.localeCompare(b.label))
+          .map((d) => new FileNode(d.label, d.absolutePath));
+        return new FileNode(f.label, f.absolutePath, deps);
+      });
+  };
+
   const materialize = (entry: DirEntry): TreeNode[] => {
     const folderNodes = [...entry.dirs.entries()]
       .sort((a, b) => a[0].localeCompare(b[0]))
       .map(([name, child]) => new FolderNode(name, materialize(child)));
-    const fileNodes = entry.files
-      .sort((a, b) => a.label.localeCompare(b.label))
-      .map((f) => new FileNode(f.label, f.absolutePath));
     // Folders first, then files, matching Visual Studio's ordering.
-    return [...folderNodes, ...fileNodes];
+    return [...folderNodes, ...buildFileNodes(entry.files)];
   };
 
   return materialize(root);
