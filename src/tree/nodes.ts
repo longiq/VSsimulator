@@ -88,7 +88,8 @@ export class FileNode extends TreeNode {
   constructor(
     label: string,
     public readonly absolutePath: string,
-    private readonly children: TreeNode[] = []
+    private readonly children: TreeNode[] = [],
+    isForm = false
   ) {
     super(
       label,
@@ -96,7 +97,8 @@ export class FileNode extends TreeNode {
         ? vscode.TreeItemCollapsibleState.Collapsed
         : vscode.TreeItemCollapsibleState.None
     );
-    this.contextValue = 'file';
+    // `vbForm` enables the "View Form Designer" context menu entry.
+    this.contextValue = isForm ? 'vbForm' : 'file';
     this.resourceUri = vscode.Uri.file(absolutePath);
     this.iconPath = vscode.ThemeIcon.File;
     this.command = {
@@ -192,10 +194,14 @@ function buildFileTree(project: VbProject): TreeNode[] {
     return primaries
       .sort((a, b) => a.label.localeCompare(b.label))
       .map((f) => {
-        const deps = (dependentsByParent.get(f.label.toLowerCase()) ?? [])
+        const rawDeps = dependentsByParent.get(f.label.toLowerCase()) ?? [];
+        const deps = rawDeps
           .sort((a, b) => a.label.localeCompare(b.label))
           .map((d) => new FileNode(d.label, d.absolutePath));
-        return new FileNode(f.label, f.absolutePath, deps);
+        // A primary .vb with a *.Designer.vb dependent is a WinForms form.
+        const isForm =
+          /\.vb$/i.test(f.label) && rawDeps.some((d) => /\.designer\.vb$/i.test(d.label));
+        return new FileNode(f.label, f.absolutePath, deps, isForm);
       });
   };
 

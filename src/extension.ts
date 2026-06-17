@@ -1,11 +1,13 @@
 import * as vscode from 'vscode';
 import { SolutionTreeProvider } from './tree/SolutionTreeProvider';
-import { ProjectNode, SolutionNode, TreeNode } from './tree/nodes';
+import { FileNode, ProjectNode, SolutionNode, TreeNode } from './tree/nodes';
 import { VbProject } from './solution/VbprojParser';
 import { build } from './build/BuildService';
 import { clearMSBuildCache } from './build/MSBuildLocator';
 import { run } from './run/RunService';
 import { debug } from './debug/DebugService';
+import { showFormPreview } from './form/FormPreviewPanel';
+import { isFormFile, resolveFormDesigner } from './form/formResolver';
 
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
   const initialSln = await findWorkspaceSolution();
@@ -53,7 +55,25 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     }),
     vscode.commands.registerCommand('vbsln.openFile', (uri: vscode.Uri) => {
       void vscode.window.showTextDocument(uri);
+    }),
+    vscode.commands.registerCommand('vbsln.viewForm', (arg?: TreeNode | vscode.Uri) => {
+      viewForm(arg);
     })
+  );
+
+  // Track whether the active editor is a WinForms form so the editor-title
+  // "View Form Designer" button can show/hide itself.
+  const updateFormContext = (editor: vscode.TextEditor | undefined) => {
+    const active = editor?.document.uri.fsPath;
+    void vscode.commands.executeCommand(
+      'setContext',
+      'vbsln.activeIsForm',
+      active ? isFormFile(active) : false
+    );
+  };
+  updateFormContext(vscode.window.activeTextEditor);
+  context.subscriptions.push(
+    vscode.window.onDidChangeActiveTextEditor(updateFormContext)
   );
 
   // Re-detect MSBuild when its setting changes.
@@ -77,6 +97,32 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 
 export function deactivate(): void {
   // Nothing to clean up; subscriptions are disposed by VS Code.
+}
+
+/** Open a read-only WinForms preview for a tree node, editor URI, or the active editor. */
+function viewForm(arg?: TreeNode | vscode.Uri): void {
+  let filePath: string | undefined;
+  if (arg instanceof FileNode) {
+    filePath = arg.absolutePath;
+  } else if (arg instanceof vscode.Uri) {
+    filePath = arg.fsPath;
+  } else {
+    filePath = vscode.window.activeTextEditor?.document.uri.fsPath;
+  }
+
+  if (!filePath) {
+    void vscode.window.showWarningMessage('No file selected to preview as a form.');
+    return;
+  }
+
+  const designer = resolveFormDesigner(filePath);
+  if (!designer) {
+    void vscode.window.showWarningMessage(
+      'This file does not look like a WinForms form (no designer / InitializeComponent found).'
+    );
+    return;
+  }
+  showFormPreview(designer);
 }
 
 /** Find the first .sln file in the workspace, prompting if several exist. */
