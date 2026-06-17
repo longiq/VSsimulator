@@ -22,6 +22,12 @@ export interface ProjectItem {
   absolutePath: string;
   /** MSBuild item kind: Compile, Content, None, EmbeddedResource, ... */
   itemType: string;
+  /**
+   * The file this item is nested under in the Solution Explorer, as written in
+   * `<DependentUpon>` (usually just a file name, e.g. `Form1.vb`). Undefined for
+   * top-level items.
+   */
+  dependentUpon?: string;
 }
 
 export interface VbProject {
@@ -34,12 +40,23 @@ export interface VbProject {
   outputType: OutputType;
   /** Assembly name; defaults to project name when not specified. */
   assemblyName: string;
+  /** Root namespace, if declared. */
+  rootNamespace?: string;
+  /** Target framework version, e.g. `v4.8`. */
+  targetFramework?: string;
+  /** Startup object (e.g. `HelloWorld.Module1`), if declared. */
+  startupObject?: string;
   /** Whether the project produces a runnable executable. */
   isExecutable: boolean;
   references: ProjectReference[];
   items: ProjectItem[];
   /** Explicitly declared empty folders (<Folder Include>). */
   folders: string[];
+  /**
+   * OutputPath per configuration name (e.g. `Debug` -> `bin\Debug\`). The key
+   * `*` holds an unconditional OutputPath, if any.
+   */
+  outputPaths: Record<string, string>;
 }
 
 const ITEM_TYPES = [
@@ -101,12 +118,26 @@ export function parseVbprojContent(content: string, vbprojPath: string): VbProje
   const propertyGroups = toArray<Record<string, unknown>>(project.PropertyGroup);
   const itemGroups = toArray<Record<string, unknown>>(project.ItemGroup);
 
-  // OutputType / AssemblyName can appear in any PropertyGroup; first wins.
+  // Scalar properties can appear in any PropertyGroup; first wins.
   let outputTypeRaw: string | undefined;
   let assemblyName: string | undefined;
+  let rootNamespace: string | undefined;
+  let targetFramework: string | undefined;
+  let startupObject: string | undefined;
+  const outputPaths: Record<string, string> = {};
   for (const pg of propertyGroups) {
     outputTypeRaw = outputTypeRaw ?? firstScalar(pg['OutputType']);
     assemblyName = assemblyName ?? firstScalar(pg['AssemblyName']);
+    rootNamespace = rootNamespace ?? firstScalar(pg['RootNamespace']);
+    targetFramework = targetFramework ?? firstScalar(pg['TargetFrameworkVersion']);
+    startupObject = startupObject ?? firstScalar(pg['StartupObject']);
+
+    // OutputPath is usually inside a configuration-conditioned PropertyGroup.
+    const outputPath = firstScalar(pg['OutputPath']);
+    if (outputPath) {
+      const config = configFromCondition(pg['@_Condition']);
+      outputPaths[config ?? '*'] = outputPath;
+    }
   }
 
   const outputType = normalizeOutputType(outputTypeRaw);
@@ -122,10 +153,12 @@ export function parseVbprojContent(content: string, vbprojPath: string): VbProje
           continue;
         }
         const normalized = include.replace(/\\/g, path.sep);
+        const dependentUpon = firstScalar(entry['DependentUpon']);
         items.push({
           include,
           absolutePath: path.resolve(dir, normalized),
           itemType,
+          dependentUpon: dependentUpon ? dependentUpon.replace(/\\/g, path.sep) : undefined,
         });
       }
     }
@@ -170,11 +203,34 @@ export function parseVbprojContent(content: string, vbprojPath: string): VbProje
     name,
     outputType,
     assemblyName: assemblyName ?? name,
+    rootNamespace,
+    targetFramework,
+    startupObject,
     isExecutable: outputType === 'Exe' || outputType === 'WinExe',
     references,
     items,
     folders,
+    outputPaths,
   };
+}
+
+/**
+ * Extract the configuration name from an MSBuild PropertyGroup condition such as
+ * `'$(Configuration)|$(Platform)' == 'Debug|AnyCPU'` -> `Debug`. Returns
+ * undefined when the condition does not pin a configuration.
+ */
+function configFromCondition(condition: unknown): string | undefined {
+  if (typeof condition !== 'string') {
+    return undefined;
+  }
+  // Grab the right-hand literal, then the part before the first '|'.
+  const m = /==\s*'([^']*)'/.exec(condition);
+  if (!m) {
+    return undefined;
+  }
+  const literal = m[1];
+  const config = literal.split('|')[0].trim();
+  return config.length > 0 ? config : undefined;
 }
 
 function normalizeOutputType(raw: string | undefined): OutputType {
