@@ -29,9 +29,6 @@
   "activationEvents": [
     "workspaceContains:**/*.sln"
   ],
-  "extensionDependencies": [
-    "ms-dotnettools.csharp"
-  ],
   "contributes": {
     "viewsContainers": {
       "activitybar": [
