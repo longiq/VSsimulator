@@ -35,6 +35,12 @@ Read-only WinForms form preview (right-click a form's `.vb` → **View Form Desi
   nested containers (Panel / GroupBox). Open it by right-clicking the form in the
   tree or via the editor title-bar button. It is an approximation, not the live
   WinForms engine, so it works cross-platform (Windows/macOS/Linux).
+- **AI-ready multi-root workspace** — when you open a solution whose code lives
+  outside the current folder, the extension adds the solution's directories to a
+  multi-root workspace so AI assistants (Copilot / Codex / Claude), search and
+  go-to-definition can see the whole codebase. The generated `.code-workspace`
+  file is kept in the extension's storage (never in your project). Toggle with
+  `vbsln.addSolutionToWorkspace`.
 - **Build / Rebuild** the whole solution or an individual project with MSBuild.
 - **Run** an executable project (`OutputType` = `Exe`/`WinExe`).
 - **Debug** a .NET Framework executable using the `clr` debugger provided by the
@@ -66,7 +72,7 @@ npm run compile
 npx @vscode/vsce package        # produces vb-solution-explorer-<version>.vsix
 
 # install into VS Code
-code --install-extension vb-solution-explorer-0.1.0.vsix
+code --install-extension vb-solution-explorer-0.2.0.vsix
 ```
 
 Or in VS Code: **Extensions** view → `...` menu → **Install from VSIX...** and
@@ -95,6 +101,7 @@ Extension Development Host.
 | --- | --- | --- |
 | `vbsln.configuration` | `Debug` | MSBuild configuration used for build/run/debug. |
 | `vbsln.msbuildPath` | `""` | Explicit path to `MSBuild.exe`. Leave empty to auto-detect with `vswhere`. |
+| `vbsln.addSolutionToWorkspace` | `true` | Automatically add the opened solution's folders to a multi-root workspace so AI assistants, search and navigation can see the codebase. Set to `false` to leave the workspace untouched. |
 
 ## How it works
 
@@ -103,6 +110,7 @@ Extension Development Host.
 | Parse `.sln` | `src/solution/SolutionParser.ts` — scans `Project(...)` lines, skips solution folders. |
 | Parse `.vbproj` | `src/solution/VbprojParser.ts` — reads `OutputType`, `AssemblyName`, `OutputPath`, `RootNamespace`, items (with `DependentUpon`), references and folders. |
 | Tree view | `src/tree/SolutionTreeProvider.ts` + `src/tree/nodes.ts`. |
+| AI workspace | `src/workspace/SolutionWorkspace.ts` (+ pure `rootFolders.ts`) — builds a multi-root `.code-workspace` in global storage and opens it when needed. |
 | Form preview | `src/form/DesignerParser.ts` parses `InitializeComponent`; `src/form/formHtml.ts` renders the layout; `src/form/FormPreviewPanel.ts` hosts the webview. |
 | Locate MSBuild | `src/build/MSBuildLocator.ts` — runs `vswhere -find MSBuild\**\Bin\MSBuild.exe`. |
 | Build | `src/build/BuildService.ts` — runs MSBuild as a VS Code task with the `$msCompile` problem matcher. |

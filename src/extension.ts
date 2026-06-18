@@ -8,10 +8,18 @@ import { run } from './run/RunService';
 import { debug } from './debug/DebugService';
 import { showFormPreview } from './form/FormPreviewPanel';
 import { isFormFile, resolveFormDesigner } from './form/formResolver';
+import { ensureSolutionWorkspace } from './workspace/SolutionWorkspace';
 
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
   const initialSln = await findWorkspaceSolution();
   const provider = new SolutionTreeProvider(initialSln);
+
+  // Make the solution's code visible to AI assistants, search and navigation by
+  // ensuring its directories are part of the (multi-root) workspace.
+  const initialSolution = provider.getCurrentSolution();
+  if (initialSolution) {
+    void ensureSolutionWorkspace(context, initialSolution);
+  }
 
   const treeView = vscode.window.createTreeView('vbSolutionExplorer', {
     treeDataProvider: provider,
@@ -20,7 +28,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   context.subscriptions.push(treeView);
 
   context.subscriptions.push(
-    vscode.commands.registerCommand('vbsln.openSolution', () => openSolution(provider)),
+    vscode.commands.registerCommand('vbsln.openSolution', () => openSolution(context, provider)),
     vscode.commands.registerCommand('vbsln.refresh', () => provider.reload()),
 
     vscode.commands.registerCommand('vbsln.build', async (node?: TreeNode) => {
@@ -140,7 +148,10 @@ async function findWorkspaceSolution(): Promise<string | undefined> {
 }
 
 /** Let the user pick / browse for a .sln file and load it. */
-async function openSolution(provider: SolutionTreeProvider): Promise<void> {
+async function openSolution(
+  context: vscode.ExtensionContext,
+  provider: SolutionTreeProvider
+): Promise<void> {
   const found = await vscode.workspace.findFiles('**/*.sln', '**/node_modules/**', 50);
   const items: vscode.QuickPickItem[] = found.map((f) => ({
     label: vscode.workspace.asRelativePath(f),
@@ -159,11 +170,26 @@ async function openSolution(provider: SolutionTreeProvider): Promise<void> {
       filters: { 'Solution files': ['sln'] },
     });
     if (uris && uris.length > 0) {
-      provider.setSolution(uris[0].fsPath);
+      loadSolution(context, provider, uris[0].fsPath);
     }
     return;
   }
-  provider.setSolution(picked.description);
+  if (picked.description) {
+    loadSolution(context, provider, picked.description);
+  }
+}
+
+/** Load a solution into the tree and ensure its code is in the workspace. */
+function loadSolution(
+  context: vscode.ExtensionContext,
+  provider: SolutionTreeProvider,
+  solutionPath: string
+): void {
+  provider.setSolution(solutionPath);
+  const solution = provider.getCurrentSolution();
+  if (solution) {
+    void ensureSolutionWorkspace(context, solution);
+  }
 }
 
 /** Resolve the solution path from a node arg or the loaded solution. */
