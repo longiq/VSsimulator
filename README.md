@@ -36,11 +36,13 @@ Read-only WinForms form preview (right-click a form's `.vb` → **View Form Desi
   tree or via the editor title-bar button. It is an approximation, not the live
   WinForms engine, so it works cross-platform (Windows/macOS/Linux).
 - **AI-ready multi-root workspace** — when you open a solution whose code lives
-  outside the current folder, the extension adds the solution's directories to a
-  multi-root workspace so AI assistants (Copilot / Codex / Claude), search and
-  go-to-definition can see the whole codebase. The generated `.code-workspace`
-  file is kept in the extension's storage (never in your project). Toggle with
-  `vbsln.addSolutionToWorkspace`.
+  outside the current folder, the extension adds the solution's **project
+  folders** (only those listed in the `.sln`, not unrelated files next to it) to
+  the workspace so AI assistants (Copilot / Codex / Claude), search and
+  go-to-definition can see the codebase. If a folder is already open the project
+  folders are added in place; otherwise a multi-root `.code-workspace` is
+  generated in the extension's storage (never in your project) and opened once.
+  Toggle with `vbsln.addSolutionToWorkspace`.
 - **Build / Rebuild** the whole solution or an individual project with MSBuild.
 - **Run** an executable project (`OutputType` = `Exe`/`WinExe`).
 - **Debug** a .NET Framework executable using the `clr` debugger provided by the
@@ -72,7 +74,7 @@ npm run compile
 npx @vscode/vsce package        # produces vb-solution-explorer-<version>.vsix
 
 # install into VS Code
-code --install-extension vb-solution-explorer-0.2.0.vsix
+code --install-extension vb-solution-explorer-0.2.1.vsix
 ```
 
 Or in VS Code: **Extensions** view → `...` menu → **Install from VSIX...** and

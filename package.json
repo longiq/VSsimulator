@@ -2,7 +2,7 @@
   "name": "vb-solution-explorer",
   "displayName": "VB.NET Solution Explorer",
   "description": "Open, browse, build, run and debug VB.NET (.NET Framework) solution (.sln) files in VS Code.",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "publisher": "longiq",
   "license": "MIT",
   "icon": "media/icon.png",
@@ -29,6 +29,7 @@
   "main": "./out/extension.js",
   "activationEvents": [
     "workspaceContains:**/*.sln",
+    "workspaceContains:**/*.vbproj",
     "onCommand:vbsln.openSolution"
   ],
   "contributes": {
@@ -179,7 +180,13 @@
         "vbsln.addSolutionToWorkspace": {
           "type": "boolean",
           "default": true,
-          "description": "Automatically add the opened solution's folders to the workspace (as a multi-root workspace) so AI assistants, search and go-to-definition can see the whole codebase. The generated workspace file is kept in the extension's storage, not in your project."
+          "description": "Automatically add the opened solution's project folders to the workspace (as a multi-root workspace) so AI assistants, search and go-to-definition can see the codebase. The generated workspace file is kept in the extension's storage, not in your project."
+        },
+        "vbsln.activeSolution": {
+          "type": "string",
+          "default": "",
+          "scope": "window",
+          "description": "Path to the .sln this workspace represents. Set automatically by the extension for generated multi-root workspaces; normally you do not edit this."
         }
       }
     }
