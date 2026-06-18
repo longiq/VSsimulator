@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import * as fs from 'fs';
 import { SolutionTreeProvider } from './tree/SolutionTreeProvider';
 import { FileNode, ProjectNode, SolutionNode, TreeNode } from './tree/nodes';
 import { VbProject } from './solution/VbprojParser';
@@ -133,8 +134,15 @@ function viewForm(arg?: TreeNode | vscode.Uri): void {
   showFormPreview(designer);
 }
 
-/** Find the first .sln file in the workspace, prompting if several exist. */
+/** Find the solution to load: the one remembered for this workspace, else the
+ * first .sln found in the workspace folders. */
 async function findWorkspaceSolution(): Promise<string | undefined> {
+  // A generated multi-root workspace stores the .sln path here because the .sln
+  // itself is not one of the (project-only) folders.
+  const configured = vscode.workspace.getConfiguration('vbsln').get<string>('activeSolution');
+  if (configured && fs.existsSync(configured)) {
+    return configured;
+  }
   const files = await vscode.workspace.findFiles('**/*.sln', '**/node_modules/**', 50);
   if (files.length === 0) {
     return undefined;
