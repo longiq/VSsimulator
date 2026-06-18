@@ -123,6 +123,9 @@ interface FileEntry {
 
 /** Intermediate mutable tree used to group included items into folders. */
 interface DirEntry {
+  /** Display name (the casing first seen for this folder). */
+  name: string;
+  /** Child folders, keyed case-insensitively so e.g. `WND` and `Wnd` merge. */
   dirs: Map<string, DirEntry>;
   files: FileEntry[];
 }
@@ -134,15 +137,20 @@ interface DirEntry {
  * nested under their parent file (e.g. Form1.Designer.vb under Form1.vb).
  */
 function buildFileTree(project: VbProject): TreeNode[] {
-  const root: DirEntry = { dirs: new Map(), files: [] };
+  const root: DirEntry = { name: '', dirs: new Map(), files: [] };
 
   const ensureDir = (segments: string[]): DirEntry => {
     let current = root;
     for (const seg of segments) {
-      let next = current.dirs.get(seg);
+      // Windows paths are case-insensitive, so `WND` and `Wnd` are the same
+      // folder. Key by lower case to merge them; keep the first-seen casing as
+      // the display name. Without this, dependent files (e.g. a *.Designer.vb)
+      // can land in a sibling folder and fail to nest under their form.
+      const key = seg.toLowerCase();
+      let next = current.dirs.get(key);
       if (!next) {
-        next = { dirs: new Map(), files: [] };
-        current.dirs.set(seg, next);
+        next = { name: seg, dirs: new Map(), files: [] };
+        current.dirs.set(key, next);
       }
       current = next;
     }
@@ -206,9 +214,9 @@ function buildFileTree(project: VbProject): TreeNode[] {
   };
 
   const materialize = (entry: DirEntry): TreeNode[] => {
-    const folderNodes = [...entry.dirs.entries()]
-      .sort((a, b) => a[0].localeCompare(b[0]))
-      .map(([name, child]) => new FolderNode(name, materialize(child)));
+    const folderNodes = [...entry.dirs.values()]
+      .sort((a, b) => a.name.localeCompare(b.name))
+      .map((child) => new FolderNode(child.name, materialize(child)));
     // Folders first, then files, matching Visual Studio's ordering.
     return [...folderNodes, ...buildFileNodes(entry.files)];
   };

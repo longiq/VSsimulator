@@ -9,3 +9,6 @@ src/**
 node_modules/.bin/**
 sample/**
 .github/**
+screenshot*.png
+*.zip
+*.vsix
